@@ -1,0 +1,20 @@
+import gym
+
+import stable_baselines3
+from stable_baselines3 import PPO
+from stable_baselines3.common.vec_env import DummyVecEnv
+
+from environment import Voronoi2DEnv
+
+env = Voronoi2DEnv(100, 100, 10)
+print("YOOOOOOOO")
+print(stable_baselines3.common.vec_env.util.obs_space_info(env.observation_space))
+
+model = PPO("MlpPolicy", env, verbose=1)
+model.learn(total_timesteps=10000)
+
+obs = env.reset()
+for i in range(1000):
+    action, _states = model.predict(obs)
+    obs, rewards, dones, info = env.step(action)
+    env.render()
