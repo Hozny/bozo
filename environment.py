@@ -47,7 +47,6 @@ class Voronoi2DEnv(gym.Env):
         y_step = height / num_points
         for i in range(num_points):
             points.append([x_step * i, y_step * i])
-        print("DEFAULT GRID: ", points)
         return np.array(points)
 
     def _take_action(self, action):
@@ -74,11 +73,12 @@ class Voronoi2DEnv(gym.Env):
         # for each set of points in vor_regions, calculate the area of the region
         # and append it to the end of the regions array. Claculate areas using shoelace algorithm
         # Could this be vectorized more?
-        vor_region_obs = []
-        ratio_sum = 0
-        size_punishment = 0
-        mean_number_of_sides = 0
         vor_perimeters = np.array([])
+        vor_num_sides = np.array([])
+        vor_areas = np.array([])
+
+        adjusted_area_mean = np.array([])
+        adjusted_perimeter_mean = np.array([])
         for region in vor_regions:
             x = region[:, 0]
             y = region[:, 1]
@@ -91,29 +91,38 @@ class Voronoi2DEnv(gym.Env):
                 perimeter = 2
             elif -1 in region:
                 perimeter = BIG_INF
+                area = BIG_INF
             else:
                 # perimeter = np.sum([euclidean(a, b) for a, b in zip(x, y)])
                 perimeter = 1
+                adjusted_area_mean = np.append(adjusted_area_mean, area)
+                adjusted_perimeter_mean = np.append(
+                    adjusted_perimeter_mean, perimeter)
 
-            vor_perimeters.append(perimeter)
-            size_punishment += (1 - area)**2
-            vor_region_obs.append([area, perimeter])
-            ratio_sum += area / perimeter
-            mean_number_of_sides += len(region)
+            vor_perimeters = np.append(vor_perimeters, perimeter)
+            vor_areas = np.append(vor_areas, area)
+            vor_num_sides = np.append(vor_num_sides, len(region))
 
-        mean_number_of_sides /= len(vor_regions)
-        ratio_sum /= -1 * len(vor_regions)
-        size_punishment /= len(vor_regions)
+        vor_region_obs = np.vstack((vor_areas, vor_perimeters)).T
+
+        # NO big inf
+        adjusted_area_mean = np.mean(adjusted_area_mean)
+        adjusted_perimeter_mean = np.mean(adjusted_perimeter_mean)
 
         if len(vor_region_obs) < self.num_points:
             for i in range(self.num_points - len(vor_region_obs)):
-                vor_region_obs.append([BIG_INF, BIG_INF])
+                vor_region_obs = np.append(vor_region_obs, [BIG_INF, 1])
 
-        print("SCOREEEEEE: ", ratio_sum)
+        area_rew = np.sum(
+            (vor_areas - adjusted_area_mean)**2)
+        perimeter_rew = np.sum(
+            (vor_perimeters - adjusted_perimeter_mean)**2)
+        ratio_rew = np.sum((vor_areas / vor_perimeters)**2)
 
-        vor_region_obs = np.array(vor_region_obs)
+        reward = -area_rew-perimeter_rew-ratio_rew
 
-        return ratio_sum - 30*size_punishment - 40*mean_number_of_sides, np.array(vor_region_obs)
+        print("REWARD: ", reward)
+        return reward, vor_region_obs
 
     def step(self, action):
         reward, obs = self._take_action(action)
