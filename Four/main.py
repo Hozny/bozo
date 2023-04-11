@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 
 class TilingEnvironment(gym.Env):
-    def __init__(self, grid_size=10, max_points=6, tiling_weight=0.5):
+    def __init__(self, grid_size=10, max_points=6, tiling_weight=0):
         super(TilingEnvironment, self).__init__()
 
         self.grid_size = grid_size
@@ -120,30 +120,31 @@ class TilingEnvironment(gym.Env):
         plt.show()
 
 
-# Parse command-line arguments
-parser = argparse.ArgumentParser(description="Train or test a Voronoi Tiling agent using PPO.")
-parser.add_argument("--load", action="store_true", help="Load from the saved model instead of retraining.")
-parser.add_argument("--grid_size", type=int, default=10, help="Number of rows and columns in the grid (default: 10).")
-parser.add_argument("--max_points", type=int, default=6, help="Maximum number of Voronoi points (default: 6).")
-args = parser.parse_args()
+if __name__ == "__main__":
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description="Train or test a Voronoi Tiling agent using PPO.")
+    parser.add_argument("--load", action="store_true", help="Load from the saved model instead of retraining.")
+    parser.add_argument("--grid_size", type=int, default=10, help="Number of rows and columns in the grid (default: 10).")
+    parser.add_argument("--max_points", type=int, default=25, help="Maximum number of Voronoi points (default: 6).")
+    args = parser.parse_args()
 
-# Create the environment
-env = TilingEnvironment(grid_size=args.grid_size, max_points=args.max_points)
+    # Create the environment
+    env = TilingEnvironment(grid_size=args.grid_size, max_points=args.max_points)
 
-if args.load:
-    # Load the saved model
-    model = PPO.load("ppo_tiling_agent")
-else:
-    # Train the agent using PPO
-    model = PPO("MlpPolicy", env, verbose=1)
-    model.learn(total_timesteps=100000)
-    # Save the model
-    model.save("ppo_tiling_agent")
+    if args.load:
+        # Load the saved model
+        model = PPO.load("ppo_tiling_agent")
+    else:
+        # Train the agent using PPO
+        model = PPO("MlpPolicy", env, verbose=1)
+        model.learn(total_timesteps=50000, progress_bar=True)
+        # Save the model
+        model.save("ppo_tiling_agent")
 
-# Test the trained agent
-observation = env.reset()
-done = False
-while not done:
-    action, _states = model.predict(observation, deterministic=True)
-    observation, reward, done, info = env.step(action)
-    env.render()
+    # Test the trained agent
+    observation = env.reset()
+    done = False
+    while not done:
+        action, _states = model.predict(observation, deterministic=True)
+        observation, reward, done, info = env.step(action)
+        env.render()
